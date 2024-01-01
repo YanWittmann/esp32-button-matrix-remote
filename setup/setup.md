@@ -86,3 +86,35 @@ byte colPins[COLS] = {5, 4, 0, 2}; // 5 6 7 8
 
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 ```
+
+## Build the project
+
+For this project in particular:
+
+```shell
+pio run -t upload -t monitor
+pio run -t upload -t monitor -e esp12e
+```
+
+The specification of the environment seems optional, if you only have one environment. The platformio.ini file contains
+the `[env:esp12e]` environment.
+
+`pio` has the following arguments:
+
+```shell
+Options:
+  -e, --environment TEXT
+  -t, --target TEXT
+  --upload-port TEXT
+  --monitor-port TEXT
+  -d, --project-dir PATH
+  -c, --project-conf FILE
+  -j, --jobs INTEGER       Allow N jobs at once. Default is a number of CPUs
+                           in a system (N=16)
+  -a, --program-arg TEXT   A program argument (multiple are allowed)
+  --disable-auto-clean
+  --list-targets
+  -s, --silent
+  -v, --verbose
+  -h, --help               Show this message and exit.
+```

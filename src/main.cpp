@@ -10,7 +10,8 @@
 
 
 WiFiManager wifiManager(MQTT_DEVICE_NAME, wifi_ssid, wifi_password, WIFI_NETWORK_COUNT);
-MQTTManager mqttManager(wifiManager.getWiFiClient(), MQTT_Server, MQTT_DEVICE_NAME, MQTT_PORT, {"test/nodered"});
+MQTTManager mqttManager(wifiManager.getWiFiClient(), MQTT_Server, MQTT_DEVICE_NAME, MQTT_PORT, {});
+// MQTTManager mqttManager(wifiManager.getWiFiClient(), MQTT_Server, MQTT_DEVICE_NAME, MQTT_PORT, {"test/nodered"});
 
 void callbackMqtt(const char *topic, const byte *payload, const unsigned int length) {
     Serial.print("Message arrived [");
@@ -22,6 +23,18 @@ void callbackMqtt(const char *topic, const byte *payload, const unsigned int len
     Serial.println();
 }
 
+void setStatusLed(const bool isOn) {
+    digitalWrite(STATUS_LED_PIN, isOn ? HIGH : LOW);
+}
+
+void connectionLostCallback() {
+    setStatusLed(true);
+}
+
+void connectionEstablishedCallback() {
+    setStatusLed(false);
+}
+
 void broadcastKeypadEvent(const char key, const int state, const int multiclick) {
     char mqttPayload[256];
     snprintf(mqttPayload, sizeof(mqttPayload), R"({"key":"%c","state":"%d","multiclick":"%d","device":"%s"})",
@@ -30,7 +43,22 @@ void broadcastKeypadEvent(const char key, const int state, const int multiclick)
     Serial.print("Keypad Event: ");
     Serial.println(mqttPayload);
 
+    setStatusLed(true);
     mqttManager.getClient().publish("heidelberg_home/remote_control/button_states", mqttPayload);
+    setStatusLed(false);
+}
+
+void broadcastDebugEvent(const char *key, const char *value) {
+    char mqttPayload[256];
+    snprintf(mqttPayload, sizeof(mqttPayload), R"({"key":"%s","value":"%s","device":"%s"})",
+             key, value, MQTT_DEVICE_NAME);
+
+    Serial.print("Debug Event: ");
+    Serial.println(mqttPayload);
+
+    setStatusLed(true);
+    mqttManager.getClient().publish("heidelberg_home/remote_control/debug", mqttPayload);
+    setStatusLed(false);
 }
 
 KeypadManager keypadManager = KeypadManager(keys, rowPins, colPins, broadcastKeypadEvent);
@@ -40,6 +68,9 @@ void setup() {
     while (!Serial) {
     }
 
+    pinMode(STATUS_LED_PIN, OUTPUT);
+    setStatusLed(true);
+
     Serial.println();
     Serial.println("Initializing ESP...");
 
@@ -48,10 +79,12 @@ void setup() {
     mqttManager.setCallback(callbackMqtt);
 
     delay(1500);
+    setStatusLed(false);
 }
 
 void loop() {
-    wifiManager.reconnect();
-    mqttManager.loop();
+    wifiManager.loop(connectionLostCallback, connectionEstablishedCallback, broadcastDebugEvent);
+    mqttManager.loop(connectionLostCallback, connectionEstablishedCallback);
+
     keypadManager.checkKeys();
 }

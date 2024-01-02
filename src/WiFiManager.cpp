@@ -14,10 +14,42 @@ WiFiManager::WiFiManager(const char *deviceName, const char **ssidArray, const c
     WiFi.mode(WIFI_STA);
 }
 
-void WiFiManager::reconnect() {
-    if (WiFi.status() == WL_CONNECTED) {
-        return;
+boolean WiFiManager::isConnected() {
+    return WiFi.status() == WL_CONNECTED;
+}
+
+int WiFiManager::getSignalStrength() {
+    if (isConnected()) {
+        return WiFi.RSSI();
     }
+    return -100;
+}
+
+unsigned long lastSignalStrengthCheckTime = millis();
+
+void WiFiManager::loop(void(* connection_lost_callback)(), void(* connection_established_callback)(), void(* broadcast_debug_event)(const char *key, const char *value)) {
+    if (!isConnected()) {
+        connection_lost_callback();
+        reconnect();
+        connection_established_callback();
+    }
+
+    if (const unsigned long now = millis(); now - lastSignalStrengthCheckTime > 10000) {
+        lastSignalStrengthCheckTime = now;
+        const int signalStrength = getSignalStrength();
+        Serial.print("Signal strength: ");
+        Serial.println(signalStrength);
+        // broadcast_debug_event("signal_strength", String(signalStrength).c_str());
+        if (signalStrength < -80) {
+            Serial.println("Signal strength too low - reconnecting");
+            disconnect();
+            reconnect();
+        }
+    }
+}
+
+void WiFiManager::reconnect() {
+    if (isConnected()) return;
 
     int i = 0;
 
@@ -41,6 +73,11 @@ void WiFiManager::reconnect() {
     Serial.print("WiFi connected: ");
     Serial.println(WiFi.localIP());
     retryWiFi = 0;
+}
+
+void WiFiManager::disconnect() {
+    WiFi.disconnect();
+    delay(1000);
 }
 
 WiFiClient &WiFiManager::getWiFiClient() {

@@ -3,6 +3,9 @@
 
 #include <IPAddress.h>
 
+// OTHER
+#define STATUS_LED_PIN 3
+
 // MQTT
 #define MQTT_PORT 1883
 #define MQTT_DEVICE_NAME "esp-yan-remote-client"

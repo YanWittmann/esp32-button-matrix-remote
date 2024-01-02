@@ -9,13 +9,15 @@ public:
     MQTTManager(WiFiClient &wifiClient, const IPAddress &mqttServer, const char *deviceName, uint16_t port,
                 const std::vector<const char *> &topicsToSubscribe);
 
+    void loop(void(* connection_lost_callback)(), void(* connection_established_callback)());
+
     void reconnect();
+
+    boolean isConnected();
 
     void setCallback(MQTT_CALLBACK_SIGNATURE);
 
     PubSubClient &getClient();
-
-    void loop();
 
 private:
     PubSubClient client;

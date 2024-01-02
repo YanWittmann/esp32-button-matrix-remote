@@ -8,6 +8,9 @@ MQTTManager::MQTTManager(WiFiClient &wifiClient, const IPAddress &mqttServer, co
     client.setServer(mqttServer, port);
 }
 
+boolean MQTTManager::isConnected() {
+    return client.connected();
+}
 
 void MQTTManager::reconnect() {
     while (!client.connected()) {
@@ -17,7 +20,7 @@ void MQTTManager::reconnect() {
             Serial.println("MQTT connected");
             retryCount = 0;
 
-            for (const char* &topic: topicsToSubscribe) {
+            for (const char * &topic: topicsToSubscribe) {
                 client.subscribe(topic);
             }
         } else {
@@ -33,9 +36,11 @@ void MQTTManager::reconnect() {
     }
 }
 
-void MQTTManager::loop() {
+void MQTTManager::loop(void(* connection_lost_callback)(), void(* connection_established_callback)()) {
     if (!client.connected()) {
+        connection_lost_callback();
         reconnect();
+        connection_established_callback();
     }
     client.loop();
 }

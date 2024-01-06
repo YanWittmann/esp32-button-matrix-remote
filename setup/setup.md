@@ -2,21 +2,30 @@
 
 ### Platform IO
 
-Using https://blog.jetbrains.com/clion/2020/08/arduino-from-hobby-to-prof-p1/ as a guide, install
+Using https://blog.jetbrains.com/clion/2020/08/arduino-from-hobby-to-prof-p1/ as a guide, we will install the following
+software:
 
 - Platform IO
 - Platform IO CLion Plugin
 
-https://docs.platformio.org/en/latest/core/installation/methods/installer-script.html
+Essentially, get Platform IO from: https://docs.platformio.org/en/latest/core/installation/methods/installer-script.html
 
 ```shell
 curl -fsSL -o get-platformio.py https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py
 python3 get-platformio.py
 ```
 
-Add whatever path it tells you it installed to to your PATH, e.g. C:\Users\%USERNAME%\.platformio\penv\Scripts
+Add whatever path it tells you it installed to your PATH, e.g. `C:\Users\%USERNAME%\.platformio\penv\Scripts`.
+
+Then install the plugin for CLion:
+
+- https://www.jetbrains.com/help/clion/platformio.html
+- https://plugins.jetbrains.com/plugin/13922-platformio-for-clion
 
 ### Setup project
+
+This is how I set up the project, you do not need to do the same if you already cloned the project. I selected the board
+I own, you might have to adjust the [platformio.ini](../platformio.ini) file with your configuration.
 
 ![board selection](board-selection.png)
 
@@ -26,10 +35,7 @@ Add whatever path it tells you it installed to to your PATH, e.g. C:\Users\%USER
 
 ### Add a library
 
-https://community.platformio.org/t/how-to-include-arduino-library-in-platformio/15146
-
-> The preferred way is to NOT download the Arduino library yourself.
-> Instead go to PIO Home / Libraries (in Visual Studio Code) or to PlatformIO Registry and search for the library.
+Just for me, how to add a library. All libraries have already been added to the ini file.
 
 https://docs.platformio.org/en/latest/core/userguide/pkg/cmd_install.html#cmd-pkg-install
 
@@ -70,6 +76,8 @@ Removing dependencies from the platformio.ini file will usually remove the libra
 
 ![keypad-board-pins-example.png](keypad-board-pins-example.png)
 
+Code responsible for setting up the Keypad instance.
+
 ```c++
 constexpr byte ROWS = 4;
 constexpr byte COLS = 4;
@@ -87,7 +95,7 @@ byte colPins[COLS] = {5, 4, 0, 2}; // 5 6 7 8
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, ROWS, COLS);
 ```
 
-## Build the project
+## Upload the project
 
 For this project in particular:
 
@@ -98,23 +106,3 @@ pio run -t upload -t monitor -e esp12e
 
 The specification of the environment seems optional, if you only have one environment. The platformio.ini file contains
 the `[env:esp12e]` environment.
-
-`pio` has the following arguments:
-
-```shell
-Options:
-  -e, --environment TEXT
-  -t, --target TEXT
-  --upload-port TEXT
-  --monitor-port TEXT
-  -d, --project-dir PATH
-  -c, --project-conf FILE
-  -j, --jobs INTEGER       Allow N jobs at once. Default is a number of CPUs
-                           in a system (N=16)
-  -a, --program-arg TEXT   A program argument (multiple are allowed)
-  --disable-auto-clean
-  --list-targets
-  -s, --silent
-  -v, --verbose
-  -h, --help               Show this message and exit.
-```

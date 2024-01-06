@@ -35,6 +35,21 @@ void connectionEstablishedCallback() {
     setStatusLed(false);
 }
 
+unsigned long lastWakeupTime = millis();
+
+bool isWokenUp() {
+    return millis() - lastWakeupTime < SLEEP_MODE_TIMEOUT_MS;
+}
+
+void wakeUp() {
+    if (!isWokenUp()) {
+        setStatusLed(true);
+        Serial.println("Waking up");
+    }
+
+    lastWakeupTime = millis();
+}
+
 void broadcastKeypadEvent(const char key, const int state, const int multiclick) {
     char mqttPayload[256];
     snprintf(mqttPayload, sizeof(mqttPayload), R"({"key":"%c","state":"%d","multiclick":"%d","device":"%s"})",
@@ -46,6 +61,8 @@ void broadcastKeypadEvent(const char key, const int state, const int multiclick)
     setStatusLed(true);
     mqttManager.getClient().publish("heidelberg_home/remote_control/button_states", mqttPayload);
     setStatusLed(false);
+
+    wakeUp();
 }
 
 void broadcastDebugEvent(const char *key, const char *value) {
@@ -82,9 +99,30 @@ void setup() {
     setStatusLed(false);
 }
 
+// unsigned long lastLoopTime = 0;
+// int loopCount = 0;
+
 void loop() {
     wifiManager.loop(connectionLostCallback, connectionEstablishedCallback, broadcastDebugEvent);
     mqttManager.loop(connectionLostCallback, connectionEstablishedCallback);
 
     keypadManager.checkKeys();
+
+    if (isWokenUp()) {
+        delay(SLEEP_MODE_AWAKE_LOOP_DELAY_MS);
+    } else {
+        delay(SLEEP_MODE_ASLEEP_LOOP_DELAY_MS);
+    }
+
+    // serial print loop time
+    // loopCount++;
+    // const unsigned long now = millis();
+    // if (now - lastLoopTime > 1000) {
+    //     Serial.print("Loops in last 1 second: ");
+    //     Serial.print(loopCount);
+    //     Serial.print(", ms per loop: ");
+    //     Serial.println((float) (now - lastLoopTime) / (float) loopCount); // time in ms
+    //     lastLoopTime = now;
+    //     loopCount = 0;
+    // }
 }

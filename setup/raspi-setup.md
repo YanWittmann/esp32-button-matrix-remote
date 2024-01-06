@@ -4,7 +4,7 @@
 
 https://nodered.org/docs/getting-started/raspberrypi
 
-Version 20:
+I use version 20:
 
 ```bash
 bash <(curl -sL https://raw.githubusercontent.com/node-red/linux-installers/master/deb/update-nodejs-and-nodered) --node20
@@ -64,6 +64,8 @@ Optionally specify config file:
 ```bash
 sudo nano /etc/mosquitto/conf.d/auth.conf
 ```
+
+with
 
 ```
 listener 1883

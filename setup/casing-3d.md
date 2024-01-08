@@ -21,8 +21,9 @@ Make sure to separate them before printing.
 
 - the inside is pretty crammed, there isn't much room for the wires
 - the ESP32 is not contained hard enough, it can move around a tiny bit, but this didn't cause any issues for me
-- the button pin holes on the cover don't align perfectly with the buttons on the matrix, but using the slightly larger
+- the button pinholes on the cover don't align perfectly with the buttons on the matrix, but using the slightly larger
   pins to push them in works fine
+- the base does not contain a hole for a switch for turning on and off the power, I drilled this myself into the side
 
 ## Assembly / Images
 

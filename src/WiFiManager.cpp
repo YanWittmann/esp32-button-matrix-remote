@@ -27,7 +27,8 @@ int WiFiManager::getSignalStrength() {
 
 unsigned long lastSignalStrengthCheckTime = millis();
 
-void WiFiManager::loop(void(* connection_lost_callback)(), void(* connection_established_callback)(), void(* broadcast_debug_event)(const char *key, const char *value)) {
+void WiFiManager::loop(void (*connection_lost_callback)(), void (*connection_established_callback)(),
+                       void (*broadcast_debug_event)(const char *key, const char *value)) {
     if (!isConnected()) {
         connection_lost_callback();
         reconnect();
@@ -49,26 +50,46 @@ void WiFiManager::loop(void(* connection_lost_callback)(), void(* connection_est
 }
 
 void WiFiManager::reconnect() {
+    this->reconnect_intermediate_loop_callback([]() {
+    });
+}
+
+void WiFiManager::reconnect_intermediate_loop_callback(std::function<void()> loop_callback) {
     if (isConnected()) return;
 
-    int i = 0;
+    const int loop_duration = 500;
+    const int loop_callback_target_delay = 20;
+    const int loop_callback_target_count = loop_duration / loop_callback_target_delay;
+    Serial.print("Will be calling loop callback ");
+    Serial.print(loop_callback_target_count);
+    Serial.print(" times with a delay of ");
+    Serial.print(loop_callback_target_delay);
+    Serial.println("ms each.");
 
+    int i = 0;
     currentWiFi = 0;
-    while (WiFi.status() != WL_CONNECTED) {
+
+    do {
+        if (i != 0) {
+            for (int i = 0; i < loop_callback_target_count; ++i) {
+                delay(loop_callback_target_delay);
+                loop_callback();
+            }
+
+            if (retryWiFi++ > 75) {
+                espRestart("Failed to connect to WiFi - reboot and retry");
+            }
+        }
+
         Serial.print("Waiting for WiFi: ");
         Serial.println(ssidArray[currentWiFi]);
-        delay(500);
         if (i++ > 10) {
             i = 0;
             currentWiFi++;
             if (currentWiFi == numberOfNetworks) currentWiFi = 0;
             WiFi.begin(ssidArray[currentWiFi], passwordArray[currentWiFi]);
         }
-
-        if (retryWiFi++ > 75) {
-            espRestart("Failed to connect to WiFi - reboot and retry");
-        }
-    }
+    } while (!isConnected());
 
     Serial.print("WiFi connected: ");
     Serial.println(WiFi.localIP());
@@ -82,6 +103,14 @@ void WiFiManager::disconnect() {
 
 WiFiClient &WiFiManager::getWiFiClient() {
     return wifiClient;
+}
+
+void WiFiManager::setStaticIp(IPAddress ip) {
+    IPAddress gateway(192, 168, 1, 1);
+    IPAddress subnet(255, 255, 255, 0);
+    IPAddress dns(192, 168, 1, 1);
+
+    WiFi.config(ip, gateway, subnet, dns);
 }
 
 void WiFiManager::espRestart(const char *reason) {

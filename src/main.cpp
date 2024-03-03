@@ -2,6 +2,7 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <WiFiClient.h>
+#include <vector>
 
 #include "ProjectConfig.h"
 #include "WiFiManager.h"
@@ -35,34 +36,48 @@ void connectionEstablishedCallback() {
     setStatusLed(false);
 }
 
-unsigned long lastWakeupTime = millis();
+std::vector<KeypadKeyEvent> unsentKeypadKeyEvents;
 
-bool isWokenUp() {
-    return millis() - lastWakeupTime < SLEEP_MODE_TIMEOUT_MS;
-}
-
-void wakeUp() {
-    if (!isWokenUp()) {
-        setStatusLed(true);
-        Serial.println("Waking up");
-    }
-
-    lastWakeupTime = millis();
-}
-
-void broadcastKeypadEvent(const char key, const int state, const int multiclick) {
+void broadcastKeypadEvent(KeypadKeyEvent event) {
     char mqttPayload[256];
     snprintf(mqttPayload, sizeof(mqttPayload), R"({"key":"%c","state":"%d","multiclick":"%d","device":"%s"})",
-             key, state, multiclick, MQTT_DEVICE_NAME);
-
-    Serial.print("Keypad Event: ");
-    Serial.println(mqttPayload);
+             event.key, event.state, event.multiclick, MQTT_DEVICE_NAME);
 
     setStatusLed(true);
     mqttManager.getClient().publish("heidelberg_home/remote_control/button_states", mqttPayload);
     setStatusLed(false);
+}
 
-    wakeUp();
+void receiveKeypadEvent(KeypadKeyEvent event) {
+    Serial.print("Keypad Event: ");
+    Serial.print(event.key);
+    Serial.print(" ");
+    Serial.print(event.state);
+    Serial.print(" ");
+    Serial.println(event.multiclick);
+
+    if (wifiManager.isConnected()) {
+        broadcastKeypadEvent(event);
+    } else {
+        unsentKeypadKeyEvents.push_back(event);
+        setStatusLed(false);
+        delay(100);
+        setStatusLed(true);
+    }
+}
+
+void sendStoredEvents() {
+    if (!wifiManager.isConnected()) return;
+    if (unsentKeypadKeyEvents.empty()) return;
+
+    Serial.print("Sending stored keypad events: ");
+    Serial.println(unsentKeypadKeyEvents.size());
+
+    for (const auto &event: unsentKeypadKeyEvents) {
+        broadcastKeypadEvent(event);
+    }
+
+    unsentKeypadKeyEvents.clear();
 }
 
 void broadcastDebugEvent(const char *key, const char *value) {
@@ -78,7 +93,11 @@ void broadcastDebugEvent(const char *key, const char *value) {
     setStatusLed(false);
 }
 
-KeypadManager keypadManager = KeypadManager(keys, rowPins, colPins, broadcastKeypadEvent);
+KeypadManager keypadManager = KeypadManager(keys, rowPins, colPins, receiveKeypadEvent);
+
+void initialConnectionEstablishingKeyCheck() {
+    keypadManager.checkKeys();
+}
 
 void setup() {
     Serial.begin(9600);
@@ -91,12 +110,16 @@ void setup() {
     Serial.println();
     Serial.println("Initializing ESP...");
 
-    wifiManager.reconnect();
-    mqttManager.reconnect();
+    wifiManager.setStaticIp(static_device_ip);
+    wifiManager.reconnect_intermediate_loop_callback(initialConnectionEstablishingKeyCheck);
+    // mqttManager.reconnect();
     mqttManager.setCallback(callbackMqtt);
+    mqttManager.loop(connectionLostCallback, connectionEstablishedCallback);
 
-    delay(1500);
+    delay(100);
     setStatusLed(false);
+
+    sendStoredEvents();
 }
 
 // unsigned long lastLoopTime = 0;
@@ -108,11 +131,7 @@ void loop() {
 
     keypadManager.checkKeys();
 
-    if (isWokenUp()) {
-        delay(SLEEP_MODE_AWAKE_LOOP_DELAY_MS);
-    } else {
-        delay(SLEEP_MODE_ASLEEP_LOOP_DELAY_MS);
-    }
+    delay(SLEEP_MODE_AWAKE_LOOP_DELAY_MS);
 
     // serial print loop time
     // loopCount++;

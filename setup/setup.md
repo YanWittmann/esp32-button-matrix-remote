@@ -106,3 +106,7 @@ pio run -t upload -t monitor -e esp12e
 
 The specification of the environment seems optional, if you only have one environment. The platformio.ini file contains
 the `[env:esp12e]` environment.
+
+## Pins
+
+![esp12e pinout](ESP8266-WeMos-D1-Mini-pinout-gpio-pin.png)

@@ -12,15 +12,19 @@ public:
 
     void reconnect();
 
+    void reconnect_intermediate_loop_callback(std::function<void()> loop_callback);
+
     static void disconnect();
 
-    static int getSignalStrength();
+    static auto getSignalStrength() -> int;
 
-    static boolean isConnected();
+    static auto isConnected() -> boolean;
 
     static void espRestart(const char *reason);
 
-    WiFiClient &getWiFiClient();
+    auto getWiFiClient() -> WiFiClient &;
+
+    static void setStaticIp(IPAddress ip);
 
 private:
     const char *deviceName;

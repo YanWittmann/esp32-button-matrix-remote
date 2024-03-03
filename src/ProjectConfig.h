@@ -5,10 +5,7 @@
 
 // OTHER
 #define STATUS_LED_PIN 3
-// 30 minutes
-#define SLEEP_MODE_TIMEOUT_MS 1800000
 #define SLEEP_MODE_AWAKE_LOOP_DELAY_MS 10
-#define SLEEP_MODE_ASLEEP_LOOP_DELAY_MS 2000
 
 // MQTT
 #define MQTT_PORT 1883
@@ -33,5 +30,7 @@ byte colPins[KEYPAD_COLS] = {5, 4, 0, 2}; // 5 6 7 8
 #define WIFI_NETWORK_COUNT 2
 const char *wifi_ssid[] = {"Lauchzwiebeln", "Lauchzwiebeln"};
 const char *wifi_password[] = {"4321NYUHW@hd", "4321NYUHW@hd"};
+
+IPAddress static_device_ip(192, 168, 1, 164);
 
 #endif //PROJECTCONFIG_H

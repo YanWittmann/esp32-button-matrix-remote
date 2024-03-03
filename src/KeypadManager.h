@@ -3,7 +3,13 @@
 
 #include <Keypad.h>
 
-typedef void (*KeypadEventCallback)(char key, int state, int multiclick);
+struct KeypadKeyEvent {
+    char key;
+    int state;
+    int multiclick;
+};
+
+typedef void (*KeypadEventCallback)(KeypadKeyEvent event);
 
 template<size_t numRows, size_t numCols>
 class KeypadManager {
@@ -48,11 +54,11 @@ void KeypadManager<numRows, numCols>::checkKeys() {
                         isNotHoldingDown = true;
                         break;
                     case RELEASED:
-                        if (eventCallback) eventCallback(lastKey, RELEASED, keyPressCount);
+                        if (eventCallback) eventCallback({lastKey, RELEASED, keyPressCount});
                         lastKeyReleaseTime = millis();
                         break;
                     case HOLD:
-                        if (eventCallback) eventCallback(lastKey, HOLD, keyPressCount);
+                        if (eventCallback) eventCallback({lastKey, HOLD, keyPressCount});
                         lastKeyReleaseTime = 0;
                         isNotHoldingDown = false;
                         break;
@@ -64,7 +70,7 @@ void KeypadManager<numRows, numCols>::checkKeys() {
     }
 
     if (lastKeyReleaseTime > 0 && isNotHoldingDown && (millis() - lastKeyReleaseTime) >= multiClickMaxInterval) {
-        if (eventCallback) eventCallback(lastKey, PRESSED, keyPressCount);
+        if (eventCallback) eventCallback({lastKey, PRESSED, keyPressCount});
         lastKeyReleaseTime = 0;
     }
 }

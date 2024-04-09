@@ -8,6 +8,7 @@
 #include "WiFiManager.h"
 #include "MQTTManager.h"
 #include "KeypadManager.h"
+#include "LedPattern.h"
 
 
 WiFiManager wifiManager(MQTT_DEVICE_NAME, wifi_ssid, wifi_password, WIFI_NETWORK_COUNT);
@@ -24,16 +25,42 @@ void callbackMqtt(const char *topic, const byte *payload, const unsigned int len
     Serial.println();
 }
 
-void setStatusLed(const bool isOn) {
-    digitalWrite(STATUS_LED_PIN, isOn ? HIGH : LOW);
+unsigned long lastKeyInputTime = 0;
+
+static LedPattern ledOnPattern(UINT32_MAX, 0);
+static LedPattern ledOffPattern(0, UINT32_MAX);
+static LedPattern ledFastBlinkPattern(100, 100);
+static LedPattern ledSlowBlinkPattern(500, 500);
+static LedPattern ledIrregular1BlinkPattern(100, 500);
+static LedPattern ledIrregular2BlinkPattern(500, 100);
+
+LedPattern* activePattern = &ledOnPattern;
+
+void setActiveLedPattern(LedPattern* pattern) {
+    if (pattern != nullptr) {
+        activePattern = pattern;
+        activePattern->update();
+        Serial.print("Set active LED pattern ");
+        Serial.print(pattern->onDuration);
+        Serial.print(" ");
+        Serial.println(pattern->offDuration);
+    }
 }
 
-void connectionLostCallback() {
-    setStatusLed(true);
+void wifiConnectionLostCallback() {
+    setActiveLedPattern(&ledIrregular2BlinkPattern);
 }
 
-void connectionEstablishedCallback() {
-    setStatusLed(false);
+void wifiConnectionEstablishedCallback() {
+    setActiveLedPattern(&ledOffPattern);
+}
+
+void mqttConnectionLostCallback() {
+    setActiveLedPattern(&ledIrregular1BlinkPattern);
+}
+
+void mqttConnectionEstablishedCallback() {
+    setActiveLedPattern(&ledOffPattern);
 }
 
 std::vector<KeypadKeyEvent> unsentKeypadKeyEvents;
@@ -43,9 +70,10 @@ void broadcastKeypadEvent(KeypadKeyEvent event) {
     snprintf(mqttPayload, sizeof(mqttPayload), R"({"key":"%c","state":"%d","multiclick":"%d","device":"%s"})",
              event.key, event.state, event.multiclick, MQTT_DEVICE_NAME);
 
-    setStatusLed(true);
+    lastKeyInputTime = millis();
+    setActiveLedPattern(&ledOnPattern);
     mqttManager.getClient().publish("heidelberg_home/remote_control/button_states", mqttPayload);
-    setStatusLed(false);
+    setActiveLedPattern(&ledOffPattern);
 }
 
 void receiveKeypadEvent(KeypadKeyEvent event) {
@@ -60,9 +88,9 @@ void receiveKeypadEvent(KeypadKeyEvent event) {
         broadcastKeypadEvent(event);
     } else {
         unsentKeypadKeyEvents.push_back(event);
-        setStatusLed(false);
+        setActiveLedPattern(&ledOffPattern);
         delay(100);
-        setStatusLed(true);
+        setActiveLedPattern(&ledOnPattern);
     }
 }
 
@@ -88,14 +116,15 @@ void broadcastDebugEvent(const char *key, const char *value) {
     Serial.print("Debug Event: ");
     Serial.println(mqttPayload);
 
-    setStatusLed(true);
+    setActiveLedPattern(&ledOnPattern);
     mqttManager.getClient().publish("heidelberg_home/remote_control/debug", mqttPayload);
-    setStatusLed(false);
+    setActiveLedPattern(&ledOffPattern);
 }
 
 KeypadManager keypadManager = KeypadManager(keys, rowPins, colPins, receiveKeypadEvent);
 
 void initialConnectionEstablishingKeyCheck() {
+    activePattern->update();
     keypadManager.checkKeys();
 }
 
@@ -105,19 +134,22 @@ void setup() {
     }
 
     pinMode(STATUS_LED_PIN, OUTPUT);
-    setStatusLed(true);
+    setActiveLedPattern(&ledOnPattern);
+    lastKeyInputTime = millis();
 
     Serial.println();
     Serial.println("Initializing ESP...");
 
     wifiManager.setStaticIp(static_device_ip);
+    wifiConnectionLostCallback(); // make LED blink
     wifiManager.reconnect_intermediate_loop_callback(initialConnectionEstablishingKeyCheck);
     // mqttManager.reconnect();
     mqttManager.setCallback(callbackMqtt);
-    mqttManager.loop(connectionLostCallback, connectionEstablishedCallback);
+    mqttManager.loop(mqttConnectionLostCallback, mqttConnectionEstablishedCallback);
 
     delay(100);
-    setStatusLed(false);
+    setActiveLedPattern(&ledOffPattern);
+    lastKeyInputTime = millis();
 
     sendStoredEvents();
 }
@@ -126,12 +158,18 @@ void setup() {
 // int loopCount = 0;
 
 void loop() {
-    wifiManager.loop(connectionLostCallback, connectionEstablishedCallback, broadcastDebugEvent);
-    mqttManager.loop(connectionLostCallback, connectionEstablishedCallback);
+    wifiManager.loop(wifiConnectionLostCallback, wifiConnectionEstablishedCallback, broadcastDebugEvent);
+    mqttManager.loop(mqttConnectionLostCallback, mqttConnectionEstablishedCallback);
 
     keypadManager.checkKeys();
 
     delay(SLEEP_MODE_AWAKE_LOOP_DELAY_MS);
+
+    if (activePattern != &ledFastBlinkPattern && millis() - lastKeyInputTime > STATUS_LED_INACTIVITY_STATE) {
+        setActiveLedPattern(&ledFastBlinkPattern);
+    } else {
+        activePattern->update();
+    }
 
     // serial print loop time
     // loopCount++;

@@ -43,6 +43,13 @@ Autostart the service:
 
 ```bash
 sudo systemctl enable nodered.service
+sudo systemctl start nodered.service
+```
+
+Check whether it is running:
+
+```bash
+sudo systemctl status nodered.service
 ```
 
 Will be running on http://localhost:1880
